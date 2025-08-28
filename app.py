@@ -13,7 +13,7 @@ st.set_page_config(
 # --- Constantes ---
 TIMEZONE = "America/Sao_Paulo"
 LAYOUT_OPTIONS = {
-    "Layout 1": "L1",
+    "Layout Apha7": "L1", # Alterado de "Layout 1"
     "Layout 2": "L2",
     "Layout 3": "L3",
     "Layout 4": "L4",
@@ -29,7 +29,7 @@ if 'processed_files' not in st.session_state:
     st.session_state.processed_files = set()
 
 
-# --- Funções de Lógica de Negócio (sem alterações) ---
+# --- Funções de Lógica de Negócio ---
 
 def parse_uploaded_file(uploaded_file: Any) -> Tuple[List[Dict[str, Any]], List[str]]:
     """Lê um arquivo .txt enviado, valida cada linha e extrai os dados."""
@@ -94,7 +94,8 @@ def format_output_data(data: List[Dict[str, Any]], layout: str, timezone_str: st
     for item in sorted_data:
         base_line = f"{date_str},{time_str_content},{item['code']},{item['quantity']}"
         
-        if layout != "Layout 1":
+        # Adiciona sufixo específico do layout, se houver
+        if layout != "Layout Apha7": # Alterado de "Layout 1"
             layout_suffix = layout.replace(" ", "")
             base_line += f",{layout_suffix}"
             
