@@ -13,8 +13,8 @@ st.set_page_config(
 # --- Constantes ---
 TIMEZONE = "America/Sao_Paulo"
 LAYOUT_OPTIONS = {
-    "Layout Apha7": "L1", # Alterado de "Layout 1"
-    "Layout 2": "L2",
+    "Layout Apha7": "Apha7",
+    "Layout InovaFarma": "InovaFarma", # Alterado de "Layout 2"
     "Layout 3": "L3",
     "Layout 4": "L4",
 }
@@ -92,14 +92,21 @@ def format_output_data(data: List[Dict[str, Any]], layout: str, timezone_str: st
 
     result_lines = []
     for item in sorted_data:
-        base_line = f"{date_str},{time_str_content},{item['code']},{item['quantity']}"
-        
-        # Adiciona sufixo específico do layout, se houver
-        if layout != "Layout Apha7": # Alterado de "Layout 1"
-            layout_suffix = layout.replace(" ", "")
-            base_line += f",{layout_suffix}"
+        # Lógica de formatação específica para cada layout
+        if layout == "Layout InovaFarma":
+            # Para InovaFarma, a saída é apenas CODIGO,QUANTIDADE
+            line = f"{item['code']},{item['quantity']}"
+            result_lines.append(line)
+        else:
+            # Lógica para os outros layouts
+            base_line = f"{date_str},{time_str_content},{item['code']},{item['quantity']}"
             
-        result_lines.append(base_line)
+            # Adiciona sufixo específico do layout, se houver
+            if layout != "Layout Apha7":
+                layout_suffix = layout.replace(" ", "")
+                base_line += f",{layout_suffix}"
+            
+            result_lines.append(base_line)
 
     return "\n".join(result_lines)
 
