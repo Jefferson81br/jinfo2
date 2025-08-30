@@ -14,20 +14,18 @@ st.set_page_config(
 TIMEZONE = "America/Sao_Paulo"
 LAYOUT_OPTIONS = {
     "Layout Apha7": "Apha7",
-    "Layout InovaFarma": "InovaFarma", # Alterado de "Layout 2"
+    "Layout InovaFarma": "InovaFarma",
     "Layout 3": "L3",
     "Layout 4": "L4",
 }
 
 # --- Inicialização do Estado da Sessão ---
-# Usamos st.session_state para manter os dados entre os uploads de arquivos
 if 'processed_data' not in st.session_state:
     st.session_state.processed_data = []
 if 'errors' not in st.session_state:
     st.session_state.errors = []
 if 'processed_files' not in st.session_state:
     st.session_state.processed_files = set()
-
 
 # --- Funções de Lógica de Negócio ---
 
@@ -40,7 +38,6 @@ def parse_uploaded_file(uploaded_file: Any) -> Tuple[List[Dict[str, Any]], List[
         return [], []
 
     try:
-        # Resetamos o ponteiro do arquivo para garantir a leitura correta
         uploaded_file.seek(0)
         lines = uploaded_file.read().decode("utf-8").splitlines()
     except Exception as e:
@@ -75,6 +72,27 @@ def parse_uploaded_file(uploaded_file: Any) -> Tuple[List[Dict[str, Any]], List[
             
     return processed_data, errors
 
+def aggregate_data(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Agrega dados somando as quantidades para códigos de barras idênticos.
+
+    Args:
+        data: Uma lista de dicionários, potencialmente com códigos duplicados.
+
+    Returns:
+        Uma nova lista de dicionários com códigos únicos e quantidades somadas.
+    """
+    summed_quantities = {}
+    for item in data:
+        code = item['code']
+        quantity = item['quantity']
+        # Adiciona a quantidade ao código existente ou o inicializa
+        summed_quantities[code] = summed_quantities.get(code, 0) + quantity
+
+    # Converte o dicionário agregado de volta para o formato de lista de dicionários
+    aggregated_list = [{'code': code, 'quantity': quantity} for code, quantity in summed_quantities.items()]
+    
+    return aggregated_list
 
 def format_output_data(data: List[Dict[str, Any]], layout: str, timezone_str: str) -> str:
     """Formata os dados processados no layout de saída especificado."""
@@ -92,24 +110,17 @@ def format_output_data(data: List[Dict[str, Any]], layout: str, timezone_str: st
 
     result_lines = []
     for item in sorted_data:
-        # Lógica de formatação específica para cada layout
         if layout == "Layout InovaFarma":
-            # Para InovaFarma, a saída é apenas CODIGO,QUANTIDADE
             line = f"{item['code']},{item['quantity']}"
             result_lines.append(line)
         else:
-            # Lógica para os outros layouts
             base_line = f"{date_str},{time_str_content},{item['code']},{item['quantity']}"
-            
-            # Adiciona sufixo específico do layout, se houver
             if layout != "Layout Apha7":
                 layout_suffix = layout.replace(" ", "")
                 base_line += f",{layout_suffix}"
-            
             result_lines.append(base_line)
 
     return "\n".join(result_lines)
-
 
 def generate_filename(layout: str, timezone_str: str) -> str:
     """Gera um nome de arquivo dinâmico para o download."""
@@ -122,15 +133,14 @@ def generate_filename(layout: str, timezone_str: str) -> str:
     date_str = now.strftime("%Y%m%d")
     time_str_filename = now.strftime("%H%M")
     
-    layout_short = LAYOUT_OPTIONS.get(layout, "Layout")
+    layout_short = LAYOUT_OPTIONS.get(layout, "Layout").replace(" ", "")
     
     return f"Dados_Consolidados_{layout_short}_{date_str}_{time_str_filename}.txt"
-
 
 # --- Interface do Usuário (Streamlit) ---
 
 st.title("📦 Processador de Dados de Códigos de Barras")
-st.subheader("Para Alpha7 V3.0 (Múltiplos Arquivos)")
+st.subheader("Para Alpha7 V4.0 (Consolidação Automática)")
 st.markdown("---")
 
 # --- Barra Lateral para Configurações ---
@@ -148,12 +158,12 @@ with col1:
     st.info("**Instruções:**")
     st.markdown("""
     1.  **Escolha o Layout** na barra lateral.
-    2.  **Envie um ou mais arquivos** `.txt` usando o botão ao lado.
-    3.  Os dados serão acumulados. Você pode enviar mais arquivos se precisar.
-    4.  Quando terminar de enviar, clique em **Processar Dados Acumulados**.
+    2.  **Envie um ou mais arquivos** `.txt`.
+    3.  Os dados serão acumulados. Códigos de barras iguais terão suas **quantidades somadas**.
+    4.  Quando terminar, clique em **Processar Dados Acumulados**.
     5.  Para começar do zero, clique em **Limpar e Recomeçar**.
     """)
-    st.code("CODIGO_BARRAS_1,10\nCODIGO_BARRAS_2,5", language="text")
+    st.code("078901,10\n078902,5\n078901,3  <- Será somado", language="text")
 
 with col2:
     uploaded_files = st.file_uploader(
@@ -172,32 +182,28 @@ with col2:
                     st.session_state.processed_data.extend(data)
                     st.session_state.errors.extend(errors)
                     st.session_state.processed_files.add(file.name)
-            st.rerun() # Atualiza a tela para mostrar o novo status
+            st.rerun()
 
-    # --- Exibe o status atual e os botões de ação ---
     total_items = len(st.session_state.processed_data)
     
     if total_items > 0:
-        st.success(f"**{total_items}** itens de **{len(st.session_state.processed_files)}** arquivo(s) carregados e prontos para processar.")
+        st.success(f"**{total_items}** linhas de **{len(st.session_state.processed_files)}** arquivo(s) carregadas e prontas para processar.")
 
     if st.session_state.errors:
         st.error("❌ Foram encontrados erros em alguns arquivos:")
         with st.expander("Clique para ver os detalhes dos erros"):
             for error in st.session_state.errors:
                 st.write(f"- {error}")
-        st.warning("As linhas com erro foram ignoradas. Continue ou limpe para corrigir.")
+        st.warning("As linhas com erro foram ignoradas.")
     
-    # Botões de controle
     btn_col1, btn_col2 = st.columns(2)
 
     with btn_col1:
-        # O botão de processar só aparece se houver dados válidos
         if st.button("🚀 Processar Dados Acumulados", disabled=not st.session_state.processed_data, use_container_width=True):
-            st.session_state.run_processing = True # Flag para iniciar o processamento
+            st.session_state.run_processing = True
     
     with btn_col2:
         if st.button("🧹 Limpar e Recomeçar", use_container_width=True):
-            # Limpa todo o estado da sessão
             st.session_state.processed_data = []
             st.session_state.errors = []
             st.session_state.processed_files = set()
@@ -205,12 +211,16 @@ with col2:
                 del st.session_state.run_processing
             st.rerun()
 
-    # --- Área de Resultados (só aparece depois de clicar em "Processar") ---
     if st.session_state.get('run_processing', False):
         st.markdown("---")
         st.header("Resultado Consolidado")
 
-        result_text = format_output_data(st.session_state.processed_data, selected_layout, TIMEZONE)
+        # **NOVA ETAPA**: Agrega os dados antes de formatar
+        final_data = aggregate_data(st.session_state.processed_data)
+
+        st.info(f"Dados consolidados: **{len(st.session_state.processed_data)}** linhas foram agrupadas em **{len(final_data)}** códigos únicos.")
+
+        result_text = format_output_data(final_data, selected_layout, TIMEZONE)
         download_file_name = generate_filename(selected_layout, TIMEZONE)
 
         st.text_area(
