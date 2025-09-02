@@ -63,8 +63,8 @@ def parse_uploaded_file(uploaded_file: Any) -> Tuple[List[Dict[str, Any]], List[
         
         try:
             quantity = int(quantity_str)
-            if quantity <= 0:
-                 errors.append(f"Arquivo '{uploaded_file.name}', Linha {line_num}: A quantidade deve ser um número positivo.")
+            if quantity < 0:
+                 errors.append(f"Arquivo '{uploaded_file.name}', Linha {line_num}: A quantidade não pode ser um número negativo.")
                  continue
             processed_data.append({"code": code, "quantity": quantity})
         except ValueError:
@@ -237,3 +237,4 @@ with col2:
             mime="text/plain",
             use_container_width=True
         )
+
